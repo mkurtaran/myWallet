@@ -38,36 +38,40 @@ class _ContactPageState extends State<ContactPage> {
               itemBuilder: (BuildContext context, int index) {
                 Contact item = contacts[index];
                 //return Text(item.name + " " + item.phoneNumber);
-                return Container(
-                  padding: EdgeInsets.all(5),
-                  child: Row(
-                    children: <Widget>[
-                      CircleAvatar(
-                        backgroundImage: NetworkImage(
-                            "https://images.pexels.com/users/avatars/251450/adrijana-453.jpeg?w=256&h=256&fit=crop&crop=faces&auto=compress"),
-                        child: Text(
-                          item.name[0],
-                          style: TextStyle(
-                              fontSize: 19, fontWeight: FontWeight.bold),
-                        ),
+                return Dismissible(
+                  key: UniqueKey(),
+                  onDismissed: (direction) {
+                    setState(() {
+                      contacts.removeAt(index);
+                    });
+
+                    Scaffold.of(context).showSnackBar(SnackBar(
+                      content: Text("${item.name} silindi."),
+                      action: SnackBarAction(
+                        label: "Geri Al",
+                        onPressed: () {
+                          setState(() {
+                            contacts.add(item);
+                          });
+                        },
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 5),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(item.name),
-                            Text(item.phoneNumber)
-                          ],
-                        ),
+                    ));
+                  },
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage: AssetImage(
+                        item.avatar.isEmpty
+                            ? "assets/image/person.jpg"
+                            : item.avatar,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Divider(
-                          height: 2,
-                        ),
+                      child: Text(
+                        item.name[0],
+                        style: TextStyle(
+                            fontSize: 19, fontWeight: FontWeight.bold),
                       ),
-                    ],
+                    ),
+                    title: Text(item.name),
+                    subtitle: Text(item.phoneNumber),
                   ),
                 );
               })),
