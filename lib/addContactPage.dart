@@ -2,17 +2,39 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mywallet/database/db_helper.dart';
 import 'model/contact.dart';
 
 class AddContactPage extends StatelessWidget {
+  final Contact contact;
+
+  const AddContactPage({Key key, @required this.contact}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Ekleme"),
+        title: Text(contact.id == null ? "Yeni Kayıt Ekle" : contact.name),
       ),
-      body: SingleChildScrollView(child: AddContactForm()),
+      body: SingleChildScrollView(
+          child: ContactForm(contact: contact, child: AddContactForm())),
     );
+  }
+}
+
+class ContactForm extends InheritedWidget {
+  final Contact contact;
+
+  ContactForm({Key key, @required Widget child, @required this.contact})
+      : super(key: key, child: child);
+
+  static ContactForm of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<ContactForm>();
+  }
+
+  @override
+  bool updateShouldNotify(ContactForm oldWidget) {
+    return contact.id != oldWidget.contact.id;
   }
 }
 
@@ -24,17 +46,23 @@ class AddContactForm extends StatefulWidget {
 class _AddContactFormState extends State<AddContactForm> {
   final _formKey = GlobalKey<FormState>();
   File _file;
+  DbHelper _dbHelper;
+
+  @override
+  void initState() {
+    _dbHelper = DbHelper();
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
-    String name;
-    String phoneNumber;
+    Contact contact = ContactForm.of(context).contact;
 
     return Column(
       children: <Widget>[
         Stack(children: [
           Image.asset(
-            _file == null ? "assets/image/person.jpg" : _file.path,
+            contact.avatar == null ? "assets/image/person.jpg" : contact.avatar,
             fit: BoxFit.cover,
             width: double.infinity,
             height: 200,
@@ -58,6 +86,7 @@ class _AddContactFormState extends State<AddContactForm> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                   child: TextFormField(
+                    initialValue: contact.name,
                     validator: (val) {
                       if (val.isEmpty) {
                         return "İsim gereklidir";
@@ -66,7 +95,7 @@ class _AddContactFormState extends State<AddContactForm> {
                       return null;
                     },
                     onSaved: (val) {
-                      name = val;
+                      contact.name = val;
                     },
                     decoration: InputDecoration(hintText: "İsim Soyisim"),
                   ),
@@ -74,6 +103,7 @@ class _AddContactFormState extends State<AddContactForm> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                   child: TextFormField(
+                    initialValue: contact.phoneNumber,
                     keyboardType: TextInputType.phone,
                     validator: (val) {
                       if (val.isEmpty) {
@@ -83,7 +113,7 @@ class _AddContactFormState extends State<AddContactForm> {
                       return null;
                     },
                     onSaved: (val) {
-                      phoneNumber = val;
+                      contact.phoneNumber = val;
                     },
                     decoration: InputDecoration(hintText: "Numara"),
                   ),
@@ -92,17 +122,19 @@ class _AddContactFormState extends State<AddContactForm> {
                   color: Colors.blue,
                   textColor: Colors.white,
                   child: Text("Kaydet"),
-                  onPressed: () {
+                  onPressed: () async {
                     if (_formKey.currentState.validate()) {
                       _formKey.currentState.save();
-                      Contact.contacts.add(Contact(
-                          name: name,
-                          phoneNumber: phoneNumber,
-                          avatar: _file == null ? "" : _file.path));
+
+                      if (contact.id == null) {
+                        await _dbHelper.insertContact(contact);
+                      } else {
+                        await _dbHelper.updateContact(contact);
+                      }
 
                       var snackBar = Scaffold.of(context).showSnackBar(SnackBar(
                         duration: Duration(milliseconds: 300),
-                        content: Text("$name eklendi."),
+                        content: Text("${contact.name} eklendi."),
                       ));
 
                       snackBar.closed.then((onValue) {
@@ -120,10 +152,11 @@ class _AddContactFormState extends State<AddContactForm> {
   }
 
   void getFile() async {
+    Contact contact = ContactForm.of(context).contact;
     var image = await ImagePicker.pickImage(source: ImageSource.camera);
 
     setState(() {
-      _file = image;
+      contact.avatar = image.path;
     });
   }
 }
